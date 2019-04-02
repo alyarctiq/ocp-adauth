@@ -1,0 +1,49 @@
+--- # add necessary block to master config to setup AD auth
+# master-only tasks
+- hosts: masters
+  gather_facts: smart
+  become: yes
+  vars:
+    # the custom name of the authentication - shows as such in OCP UI
+    regname: ''
+    # password for the service account
+    paswd: ''
+    # bindDN - retrieved via ldapsearch 
+    binddn: 'CN='
+    # url for active directory query
+    adurl: 'ldap://'
+  strategy: free
+  tasks:
+  - name: ' [ADD] AD Auth block to master-config'
+    blockinfile:
+      state: present
+      path: /etc/origin/master/master-config.yaml
+      backup: yes
+      marker: "# -- {mark} ANSIBLE MANAGED BLOCK - AD Auth --"
+      insertafter: " identityProviders:"
+        # the '|2' below here is notation for enabling indentation in the block's content entry
+      content: |2
+          - name: {{ regname }}
+            challenge: true
+            login: true
+            mappingMethod: add
+            provider:
+              apiVersion: v1
+              kind: LDAPPasswordIdentityProvider
+              attributes:
+                id:
+                - cn
+                - sAMAccountName
+              bindDN: "{{ binddn }}"
+              bindPassword: "{{ paswd }}"
+              insecure: true
+              url: "{{ adurl }}"
+# restart master services
+  - name: restart openshift services
+    service:
+      name: "{{ item }}"
+      state: restarted
+    serial: yes
+    with_items:
+      - atomic-openshift-master-api
+- atomic-openshift-master-controllers
