@@ -1,0 +1,22 @@
+--- # add necessary blocks to ocp nodes for storage from azure to hook up
+# master-only tasks
+- hosts: masters
+  gather_facts: smart
+  become: yes
+  strategy: free
+  tasks:
+# find the clientID by using the command `az account show`
+  - name: ' [REMOVE] AD Auth block from master-config'
+    blockinfile:
+      state: absent
+      path: /etc/origin/master/master-config.yaml
+      backup: yes
+      marker: "# -- {mark} ANSIBLE MANAGED BLOCK - AD Auth --"
+# restart master services
+  - name: restart openshift services
+    service:
+      name: "{{ item }}"
+      state: restarted
+    with_items:
+      - atomic-openshift-master-api
+- atomic-openshift-master-controllers
